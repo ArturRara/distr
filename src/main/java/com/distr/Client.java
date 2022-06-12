@@ -39,20 +39,19 @@ public class Client {
 	}
 
 	public void read(String path) throws UnknownHostException, IOException{
-		List <String> fileServer = service_stub.getStorage(path); 
+		List <String> fileServer = service_stub.get(path); 
 		
-		System.out.println(fileServer);
 		String addr  = new String(fileServer.get(0));  
 		int port  = Integer.parseInt(fileServer.get(1));
 		Socket socket = new Socket(InetAddress.getByName(addr), port);
 
-		byte[] contents = new byte[10000];
-		FileOutputStream fos = new FileOutputStream(path);
-		BufferedOutputStream bout = new BufferedOutputStream(fos);
+		byte[] buffer = new byte[10000];
+		FileOutputStream fout = new FileOutputStream(path);
+		BufferedOutputStream bout = new BufferedOutputStream(fout);
 		InputStream is = socket.getInputStream();
 		int bytesRead = 0;
-		while((bytesRead=is.read(contents))!=-1)
-		bout.write(contents, 0, bytesRead);
+		while((bytesRead=is.read(buffer))!=-1)
+		bout.write(buffer, 0, bytesRead);
 		bout.flush();
 		bout.close();    
 		socket.close();
@@ -66,42 +65,44 @@ public class Client {
 			public void run(){
 				System.out.println(" listening ...");
 			try{
-			socket = server_socket.accept();
+			
 
-			String anim = "|/-\\";
+			String progress = "|/-\\";
+				socket = server_socket.accept();
+				socket.setSoTimeout(3000000);
 				File file = new File(path);
 				FileInputStream fis = new FileInputStream(file);
 				BufferedInputStream bin = new BufferedInputStream(fis); 
 				OutputStream os = socket.getOutputStream();
-				byte[] contents;
+				byte[] buffer;
 				long fileLength = file.length(); 
-				long current = 0;
+				long i = 0;
 
-				while(current!=fileLength){ 
+				while(i!=fileLength){ 
 					int size = 10000;
-					if(fileLength - current >= size)
-						current += size;    
+					if(fileLength - i >= size)
+						i += size;    
 					else{ 
-						size = (int)(fileLength - current); 
-						current = fileLength;
+						size = (int)(fileLength - i); 
+						i = fileLength;
 					} 
-					contents = new byte[size]; 
-					bin.read(contents, 0, size); 
-					os.write(contents);
-					int x = (int)((current * 100)/fileLength) ;
+					buffer = new byte[size]; 
+					bin.read(buffer, 0, size); 
+					os.write(buffer);
+					int x = (int)((i * 100)/fileLength) ;
 
-					String data = "\r" + anim.charAt(x % anim.length()) + " " + x + "%" + "Sent" ;
+					String data = "\r" + progress.charAt(x % progress.length()) + " " + x + "%" + " Sent" ;
 					System.out.write(data.getBytes());
-
 				}   
 				os.flush(); 
 				bin.close();
-				System.out.println("File sent succesfully!");
+				socket.close();
+				System.out.println(" File sent succesfully");
+
 				}catch(Exception e){ e.printStackTrace();}
 			}
 
 		}).start(); 
-
 		service_stub.put("localhost", server_port , file_name);
 	}
 
@@ -112,14 +113,13 @@ public class Client {
 			System.out.println(file);
 	}
 
-
 	public static void main (String args[] )throws  RemoteException , NotBoundException , UnknownHostException , IOException{
 		if (args.length < 3){ 
-			System.out.println( "Program przyjuje 3 argumnenty, nie wpisane argumenty dostały wartości domyślne " 
-			+ "host port socket ");
+			System.out.println( "Program accepts 3 arguments, if no arguments are given, they get default values \n" 
+			+ "host | port | socket ");
 		}
 		Client client = new Client(args);
-		System.out.println("Program czeka na komendy");
+		System.out.println("Program waits for command");
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		String line = "";
 
@@ -131,7 +131,7 @@ public class Client {
 							client.read(words[1]);
 						} catch (Exception e) {
 							System.err.println("Error: the file could not be read");
-							//e.printStackTrace();
+							e.printStackTrace();
 						}
 						break;
 					case "write":
@@ -146,13 +146,12 @@ public class Client {
 						try {
 							client.list_files();
 						} catch (Exception e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 						break;
 					case "help":
 					default:
-						System.out.println("Dostępne komendy \n" + 
+						System.out.println("Available commands \n" + 
 						" write \"filename\"| read \"filename\" | ls");
 				}
 			}

@@ -13,7 +13,6 @@ public class Master_server extends UnicastRemoteObject implements Service {
 	private Map <String , List <Server_interface> > filesLocation;
 	private Map <Server_interface ,List <String> >  Replica;
 	private Set <Server_interface> StorageServers;
-	private List<Server_interface> replicaServersLocs;
 	private Random random;
 	
 
@@ -21,7 +20,6 @@ public class Master_server extends UnicastRemoteObject implements Service {
 		filesLocation = new HashMap <String , List<Server_interface> >();
 		Replica = new HashMap <Server_interface, List<String>> ();
 		StorageServers = new HashSet<Server_interface>();
-		replicaServersLocs = new ArrayList<Server_interface>();
 		random = new Random(); 
 	}
 
@@ -43,7 +41,7 @@ public class Master_server extends UnicastRemoteObject implements Service {
 			else
 				filesLocation.get(file).add(command_stub);
 		}
-		if ( Replica.get(command_stub) == null){
+		if(Replica.get(command_stub) == null){
 			List<String> temp = new ArrayList<String>();
 			temp.add(new String(IP_STORAGE_SERVER));
 			temp.add(new String(storage_port + "") );
@@ -53,21 +51,24 @@ public class Master_server extends UnicastRemoteObject implements Service {
 		return new String[2];
 	}
 
-	public List<String> getStorage(String file) throws RemoteException, FileNotFoundException , IOException {
+	public List<String> get(String file) throws RemoteException, FileNotFoundException , IOException {
 		System.out.println("Client connected");
 		Server_interface  random_server = filesLocation.get(file).get(random.nextInt(filesLocation.get(file).size()));
-		System.out.println("random server " + Replica.get(random_server));
-
 		random_server.read(file);
-		
+
 		return Replica.get(random_server);
 	}	
 
 	public boolean put(String ip , String port , String path )throws Exception {
-			System.out.println("Senfing file to : " + ip);
-
-				for (Server_interface stub : StorageServers){
-					stub.write(ip , port , path);
+			System.out.println("Sending file to : " + ip);
+				int size = StorageServers.size();
+				int item = new Random().nextInt(size); 
+				int i = 0;
+				for(Server_interface stub : StorageServers)
+				{
+					if (i == item)
+						stub.write(ip , port , path);
+					i++;
 				}
 				return true;
 	}
@@ -77,11 +78,14 @@ public class Master_server extends UnicastRemoteObject implements Service {
 	}
 
 	public static void main (String args[] ) throws RemoteException  , NotBoundException , UnknownHostException, IOException {
+		if (args.length < 2){
+			System.out.println( "Program accepts 2 arguments, if no arguments are given, they get default values \n"
+			 + "ip| port");
+		}
 		String ip = args.length>0 ? args[0] : "localhost";
 		String port = args.length>1 ? args[1] : "60000";
 		System.setProperty("java.rmi.server.hostname",ip);
 		new Master_server().start(port);
-		System.out.println("\nListening Incoming  Connections on :: " + port);
+		System.out.println("\nListening on  port :: " + port);
 	}
-
 }
